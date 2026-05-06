@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_DB: prinvue
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql:z
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prinvue"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # image: vicciviccison/prinvue-hub:latest
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=prinvue
+      - DB_USER=postgres
+      - DB_PASSWORD=1234
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
