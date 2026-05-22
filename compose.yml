@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:18
     restart: always
+    shm_size: 128mb
     environment:
       POSTGRES_DB: prinvue
       POSTGRES_USER: postgres
@@ -11,11 +12,30 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql:z
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command:
+      - "postgres"
+      - "-c"
+      - "max_wal_size=512MB"
+      - "-c"
+      - "min_wal_size=128MB"
+      - "-c"
+      - "checkpoint_timeout=10min"
+      - "-c"
+      - "autovacuum_vacuum_scale_factor=0.05"
+      - "-c"
+      - "autovacuum_analyze_scale_factor=0.02"
+      - "-c"
+      - "log_min_duration_statement=1000"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d prinvue"]
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   app:
     # image: vicciviccison/prinvue-hub:latest
@@ -32,6 +52,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata:

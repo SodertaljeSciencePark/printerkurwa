@@ -9,4 +9,6 @@ public interface StatsStrategy {
   boolean supports(String printerModel);
 
   void startListening(Printer printer, Map<UUID, PrinterStats> statsMap);
+
+  void stopListening(UUID printerId);
 }

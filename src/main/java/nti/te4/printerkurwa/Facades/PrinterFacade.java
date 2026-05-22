@@ -32,6 +32,14 @@ public class PrinterFacade {
           return;
       }
 
+      if (!strategy.canConnect(printer.getIp())) {
+          try {
+              response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                  "Could not connect to camera at " + printer.getIp());
+          } catch (Exception ignored) {}
+          return;
+      }
+
       strategy.streamCamera(response, printer.getIp(), printer.getAccessCode());
   }
 

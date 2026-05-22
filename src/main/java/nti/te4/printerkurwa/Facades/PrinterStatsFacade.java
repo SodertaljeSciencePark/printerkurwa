@@ -1,5 +1,6 @@
 package nti.te4.printerkurwa.Facades;
 
+import lombok.extern.slf4j.Slf4j;
 import nti.te4.printerkurwa.Models.Printer;
 import nti.te4.printerkurwa.Models.PrinterStats;
 import nti.te4.printerkurwa.Strategies.StatsStrategy;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class PrinterStatsFacade {
@@ -25,6 +27,7 @@ public class PrinterStatsFacade {
   }
 
   public void startListening(Printer printer) {
+    stopListening(printer.getId());
 
     StatsStrategy strategy = statsStrategies.stream()
         .filter(s -> s.supports(printer.getModelType()))
@@ -34,7 +37,12 @@ public class PrinterStatsFacade {
     if (strategy != null) {
       strategy.startListening(printer, statsMap);
     } else {
-      System.err.println("No strategy found for: " + printer.getModelType());
+      log.error("No strategy found for: {}", printer.getModelType());
     }
+  }
+
+  public void stopListening(UUID printerId) {
+    statsStrategies.forEach(s -> s.stopListening(printerId));
+    statsMap.remove(printerId);
   }
 }
