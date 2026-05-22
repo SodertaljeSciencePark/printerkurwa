@@ -64,11 +64,14 @@ public class PrinterService {
     existingPrinter.setAccessCode(updatedPrinter.getAccessCode());
     existingPrinter.setModelType(updatedPrinter.getModelType());
 
-    return printerRepository.save(existingPrinter);
+    Printer savedPrinter = printerRepository.save(existingPrinter);
+    printerStatsFacade.startListening(savedPrinter);
+    return savedPrinter;
   }
 
   public boolean deletePrinter(UUID id) {
     if (printerRepository.existsById(id)) {
+      printerStatsFacade.stopListening(id);
       printerRepository.deleteById(id);
       return true;
     }

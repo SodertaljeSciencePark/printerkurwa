@@ -2,6 +2,7 @@ package nti.te4.printerkurwa.Strategies;
 
 import jakarta.servlet.http.HttpServletResponse;
 
+import lombok.extern.slf4j.Slf4j;
 import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Frame;
@@ -12,7 +13,10 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
+@Slf4j
 @Service
 public class BambuXSeriesCameraStrategy implements CameraStrategy {
 
@@ -22,8 +26,19 @@ public class BambuXSeriesCameraStrategy implements CameraStrategy {
   }
 
   @Override
+  public boolean canConnect(String ip) {
+    try (Socket socket = new Socket()) {
+      socket.connect(new InetSocketAddress(ip, 322), 2000);
+      return true;
+    } catch (Exception e) {
+      log.warn("Could not connect to X-series camera at {}:322", ip);
+      return false;
+    }
+  }
+
+  @Override
   public void streamCamera(HttpServletResponse response, String ip, String credentials) {
-    avutil.av_log_set_level(avutil.AV_LOG_ERROR);
+    avutil.av_log_set_level(avutil.AV_LOG_QUIET);
     String rtspsUrl = "rtsps://bblp:" + credentials + "@" + ip + ":322/streaming/live/1";
 
     response.setContentType("multipart/x-mixed-replace; boundary=--frame");
@@ -37,7 +52,7 @@ public class BambuXSeriesCameraStrategy implements CameraStrategy {
       grabber.setOption("loglevel", "quiet");
       grabber.setOption("fflags", "nobuffer");
 
-      System.out.println("Connecting to X-series camera on: " + ip);
+      log.info("Connecting to X-series camera on: {}", ip);
       grabber.start();
 
       OutputStream out = response.getOutputStream();
@@ -59,12 +74,17 @@ public class BambuXSeriesCameraStrategy implements CameraStrategy {
             ImageIO.write(bufferedImage, "jpg", baos);
             byte[] imageBytes = baos.toByteArray();
 
-            out.write("--frame\r\n".getBytes());
-            out.write("Content-Type: image/jpeg\r\n".getBytes());
-            out.write(("Content-Length: " + imageBytes.length + "\r\n\r\n").getBytes());
-            out.write(imageBytes);
-            out.write("\r\n".getBytes());
-            out.flush();
+            try {
+              out.write("--frame\r\n".getBytes());
+              out.write("Content-Type: image/jpeg\r\n".getBytes());
+              out.write(("Content-Length: " + imageBytes.length + "\r\n\r\n").getBytes());
+              out.write(imageBytes);
+              out.write("\r\n".getBytes());
+              out.flush();
+            } catch (java.io.IOException e) {
+              log.info("Client disconnected from X-series camera stream on {}", ip);
+              break;
+            }
 
             lastFrameTime = currentTime;
           }
@@ -73,7 +93,7 @@ public class BambuXSeriesCameraStrategy implements CameraStrategy {
 
       grabber.stop();
     } catch (Exception e) {
-      System.err.println("X-series camera streaming error: " + e.getMessage());
+      log.error("X-series camera streaming error on {}: {}", ip, e.getMessage());
     }
   }
 }

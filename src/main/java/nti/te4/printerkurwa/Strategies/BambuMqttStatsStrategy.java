@@ -7,17 +7,21 @@ import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
 import com.hivemq.client.mqtt.datatypes.MqttQos;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import lombok.extern.slf4j.Slf4j;
 import nti.te4.printerkurwa.Models.Printer;
 import nti.te4.printerkurwa.Models.PrinterStats;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Service
 public class BambuMqttStatsStrategy implements StatsStrategy {
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Map<UUID, Mqtt3AsyncClient> activeClients = new ConcurrentHashMap<>();
 
     @Override
     public boolean supports(String printerModel) {
@@ -28,10 +32,11 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
 
     @Override
     public void startListening(Printer printer, Map<UUID, PrinterStats> statsMap) {
+        stopListening(printer.getId());
 
         String serial = printer.getSerial();
         if (serial == null || serial.trim().isEmpty()) {
-            System.err.println("Could not start MQTT: serial number is missing for printer: " + printer.getName());
+            log.error("Could not start MQTT: serial number is missing for printer: {}", printer.getName());
             return;
         }
 
@@ -54,10 +59,11 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
                     .send()
                     .whenComplete((connAck, throwable) -> {
                         if (throwable != null) {
-                            System.err.println("--- KUNDE INTE STARTA MQTT FÖR BAMBU ---");
-                            throwable.printStackTrace();
+                            log.error("--- KUNDE INTE STARTA MQTT FÖR BAMBU ---", throwable);
                             return;
                         }
+
+                        activeClients.put(printer.getId(), client);
 
                         String topic = "device/" + serial + "/report";
 
@@ -68,16 +74,24 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
                                 .send()
                                 .whenComplete((subAck, subThrowable) -> {
                                     if (subThrowable != null) {
-                                        System.err.println("Failed to subscribe to topic " + topic + ": " + subThrowable.getMessage());
+                                        log.error("Failed to subscribe to topic {} for printer {}: {}", topic, printer.getName(), subThrowable.getMessage());
                                     } else {
-                                        System.out.println("Linked! Listening on stats from: " + printer.getIp() + " on topic: " + topic);
+                                        log.info("Linked! Listening on stats from: {} on topic: {}", printer.getIp(), topic);
                                     }
                                 });
                     });
 
         } catch (Exception e) {
-            System.err.println("--- KUNDE INTE STARTA MQTT FÖR BAMBU ---");
-            e.printStackTrace();
+            log.error("--- KUNDE INTE STARTA MQTT FÖR BAMBU ---", e);
+        }
+    }
+
+    @Override
+    public void stopListening(UUID printerId) {
+        Mqtt3AsyncClient client = activeClients.remove(printerId);
+        if (client != null) {
+            log.info("Stopping MQTT listener for printer ID: {}", printerId);
+            client.disconnect();
         }
     }
 
@@ -102,7 +116,7 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
                 statsMap.put(printer.getId(), currentStats);
             }
         } catch (Exception ignored) {
-            System.err.println("Error occurred while handling MQTT message for printer: " + printer.getName());
+            log.error("Error occurred while handling MQTT message for printer: {}", printer.getName());
         }
     }
 }
