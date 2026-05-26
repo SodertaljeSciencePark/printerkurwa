@@ -27,4 +27,5 @@ public class Printer {
   private String accessCode;
   private String modelType;
   private String serial;
+  private boolean hasCamera;
 }

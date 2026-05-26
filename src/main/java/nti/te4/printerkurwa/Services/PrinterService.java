@@ -63,6 +63,8 @@ public class PrinterService {
     existingPrinter.setIp(updatedPrinter.getIp());
     existingPrinter.setAccessCode(updatedPrinter.getAccessCode());
     existingPrinter.setModelType(updatedPrinter.getModelType());
+    existingPrinter.setSerial(updatedPrinter.getSerial());
+    existingPrinter.setHasCamera(updatedPrinter.isHasCamera());
 
     Printer savedPrinter = printerRepository.save(existingPrinter);
     printerStatsFacade.startListening(savedPrinter);

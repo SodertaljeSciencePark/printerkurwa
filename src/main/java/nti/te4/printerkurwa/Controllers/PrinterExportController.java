@@ -6,6 +6,7 @@ import java.util.List;
 
 import nti.te4.printerkurwa.Repositories.PrinterRepository;
 import nti.te4.printerkurwa.Models.Printer;
+import nti.te4.printerkurwa.Services.PrinterService;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -33,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class PrinterExportController {
 
     private PrinterRepository printerRepository;
+    private PrinterService printerService;
     private ObjectMapper objectMapper; 
 
     @GetMapping("/export/json")
@@ -72,9 +74,15 @@ public class PrinterExportController {
             // Clear IDs so Hibernate treats every record as a new insert.
             // Without this, saveAll tries to merge by existing UUID and throws
             // ObjectOptimisticLockingFailureException when the row version mismatches.
-            printers.forEach(p -> p.setId(null));
+            for (Printer p : printers) {
+                p.setId(null);
+                try {
+                    printerService.addPrinter(p);
+                } catch (Exception e) {
+                    log.error("Failed to add imported printer {}: {}", p.getName(), e.getMessage());
+                }
+            }
 
-            printerRepository.saveAll(printers);
             return ResponseEntity.ok("Successfully imported " + printers.size() + " printers.");
         } catch (Exception e) {
             log.error("Importing Printers JSON Failed, Due to: {}", e.getMessage(), e);
