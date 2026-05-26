@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import nti.te4.printerkurwa.libs.Helpers.Rounders;
+
 @Slf4j
 @Service
 public class BambuPSeriesMqttStatsStrategy implements StatsStrategy {
@@ -106,9 +108,9 @@ public class BambuPSeriesMqttStatsStrategy implements StatsStrategy {
                 PrinterStats currentStats = statsMap.getOrDefault(printer.getId(), new PrinterStats());
 
                 if (print.has("bed_temper"))
-                    currentStats.setBedTemp(print.get("bed_temper").asDouble());
+                    currentStats.setBedTemp(Rounders.round(print.get("bed_temper").asDouble(), 1));
                 if (print.has("nozzle_temper"))
-                    currentStats.setNozzleTemp(print.get("nozzle_temper").asDouble());
+                    currentStats.setNozzleTemp(Rounders.round(print.get("nozzle_temper").asDouble(), 1));
                 if (print.has("mc_percent"))
                     currentStats.setProgressPercent(print.get("mc_percent").asInt());
                 if (print.has("gcode_state"))
