@@ -49,6 +49,10 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
                     .sslConfig()
                         .trustManagerFactory(InsecureTrustManagerFactory.INSTANCE)
                         .applySslConfig()
+                    .automaticReconnect()
+                        .initialDelay(1, java.util.concurrent.TimeUnit.SECONDS)
+                        .maxDelay(60, java.util.concurrent.TimeUnit.SECONDS)
+                        .applyAutomaticReconnect()
                     .buildAsync();
 
             client.connectWith()
@@ -59,7 +63,7 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
                     .send()
                     .whenComplete((connAck, throwable) -> {
                         if (throwable != null) {
-                            log.error("--- KUNDE INTE STARTA MQTT FÖR BAMBU ---", throwable);
+                            log.error("--- COULD NOT START MQTT FOR BAMBU ---", throwable);
                             return;
                         }
 
@@ -82,7 +86,7 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
                     });
 
         } catch (Exception e) {
-            log.error("--- KUNDE INTE STARTA MQTT FÖR BAMBU ---", e);
+            log.error("--- COULD NOT START MQTT FOR BAMBU ---", e);
         }
     }
 
@@ -103,6 +107,8 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
             if (root.has("print")) {
                 JsonNode print = root.get("print");
                 PrinterStats currentStats = statsMap.getOrDefault(printer.getId(), new PrinterStats());
+                currentStats.setLastUpdated(System.currentTimeMillis());
+                currentStats.setOnline(true);
 
                 if (print.has("bed_temper"))
                     currentStats.setBedTemp(print.get("bed_temper").asDouble());
@@ -115,8 +121,8 @@ public class BambuMqttStatsStrategy implements StatsStrategy {
 
                 statsMap.put(printer.getId(), currentStats);
             }
-        } catch (Exception ignored) {
-            log.error("Error occurred while handling MQTT message for printer: {}", printer.getName());
+        } catch (Exception e) {
+            log.error("Error occurred while handling MQTT message for printer {}: {}", printer.getName(), e.getMessage());
         }
     }
 }

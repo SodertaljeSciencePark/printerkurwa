@@ -23,7 +23,17 @@ public class PrinterStatsFacade {
   private final List<StatsStrategy> statsStrategies;
 
   public PrinterStats getStats(UUID printerId) {
-    return statsMap.getOrDefault(printerId, new PrinterStats());
+    PrinterStats stats = statsMap.get(printerId);
+    if (stats == null) {
+      return PrinterStats.offline();
+    }
+    
+    if (System.currentTimeMillis() - stats.getLastUpdated() > 20000) {
+      stats.setOnline(false);
+      stats.setCurrentStatus("OFFLINE (STALE)");
+    }
+    
+    return stats;
   }
 
   public void startListening(Printer printer) {

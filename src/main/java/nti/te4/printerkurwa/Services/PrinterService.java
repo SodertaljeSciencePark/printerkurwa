@@ -6,6 +6,7 @@ import nti.te4.printerkurwa.Models.Printer;
 import nti.te4.printerkurwa.Models.PrinterStats;
 import nti.te4.printerkurwa.Repositories.PrinterRepository;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import lombok.AllArgsConstructor;
 
@@ -23,7 +24,7 @@ public class PrinterService {
 
   public Printer addPrinter(Printer newPrinter) throws IllegalArgumentException {
     if (printerRepository.existsByIp(newPrinter.getIp())) {
-      throw new IllegalArgumentException("A printer with IP: (" + newPrinter.getIp() + ") is allready registerd.");
+      throw new IllegalArgumentException("A printer with IP: (" + newPrinter.getIp() + ") is already registered.");
     }
 
     printerFacade.checkPrinter(newPrinter);
@@ -34,6 +35,7 @@ public class PrinterService {
     return savedPrinter;
   }
 
+  @Transactional(readOnly = true)
   public Printer getPrinter(UUID id) {
     return printerRepository.findById(id).orElse(null);
   }
@@ -54,7 +56,7 @@ public class PrinterService {
     if (!existingPrinter.getIp().equals(updatedPrinter.getIp())) {
       if (printerRepository.existsByIpAndIdNot(updatedPrinter.getIp(), id)) {
         throw new IllegalArgumentException(
-            "The IP addres " + updatedPrinter.getIp() + " is allready in use by another printer.");
+            "The IP address " + updatedPrinter.getIp() + " is already in use by another printer.");
       }
       printerFacade.checkPrinter(updatedPrinter);
     }

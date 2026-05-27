@@ -48,6 +48,10 @@ public class BambuXSeriesMqttStatsStrategy implements StatsStrategy {
                     .sslConfig()
                         .trustManagerFactory(InsecureTrustManagerFactory.INSTANCE)
                         .applySslConfig()
+                    .automaticReconnect()
+                        .initialDelay(1, java.util.concurrent.TimeUnit.SECONDS)
+                        .maxDelay(60, java.util.concurrent.TimeUnit.SECONDS)
+                        .applyAutomaticReconnect()
                     .buildAsync();
 
             client.connectWith()
@@ -58,7 +62,7 @@ public class BambuXSeriesMqttStatsStrategy implements StatsStrategy {
                     .send()
                     .whenComplete((connAck, throwable) -> {
                         if (throwable != null) {
-                            log.error("--- KUNDE INTE STARTA MQTT FÖR BAMBU X-SERIES ---", throwable);
+                            log.error("--- COULD NOT START MQTT FOR BAMBU X-SERIES ---", throwable);
                             return;
                         }
 
@@ -81,7 +85,7 @@ public class BambuXSeriesMqttStatsStrategy implements StatsStrategy {
                     });
 
         } catch (Exception e) {
-            log.error("--- KUNDE INTE STARTA MQTT FÖR BAMBU X-SERIES ---", e);
+            log.error("--- COULD NOT START MQTT FOR BAMBU X-SERIES ---", e);
         }
     }
 
@@ -102,6 +106,8 @@ public class BambuXSeriesMqttStatsStrategy implements StatsStrategy {
             if (root.has("print")) {
                 JsonNode print = root.get("print");
                 PrinterStats currentStats = statsMap.getOrDefault(printer.getId(), new PrinterStats());
+                currentStats.setLastUpdated(System.currentTimeMillis());
+                currentStats.setOnline(true);
 
                 if (print.has("bed_temper"))
                     currentStats.setBedTemp(print.get("bed_temper").asDouble());

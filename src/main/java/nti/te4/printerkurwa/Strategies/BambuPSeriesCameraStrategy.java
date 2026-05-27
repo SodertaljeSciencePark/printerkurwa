@@ -35,6 +35,11 @@ public class BambuPSeriesCameraStrategy implements CameraStrategy {
 
   @Override
   public void streamCamera(HttpServletResponse response, String ip, String credentials) {
+    if (!canConnect(ip)) {
+      log.error("Camera connection check failed for P-series at {}", ip);
+      response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+      return;
+    }
     response.setContentType("multipart/x-mixed-replace; boundary=--frame");
 
     try (CameraConfig config = new CameraConfig(
@@ -54,6 +59,7 @@ public class BambuPSeriesCameraStrategy implements CameraStrategy {
       long nextFrameAt = System.currentTimeMillis();
 
       for (byte[] frame : camera) {
+        if (Thread.currentThread().isInterrupted()) break;
         long now = System.currentTimeMillis();
         long wait = nextFrameAt - now;
 
@@ -80,6 +86,9 @@ public class BambuPSeriesCameraStrategy implements CameraStrategy {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
       log.error("Camera streaming error on IP {}: {}", ip, e.getMessage());
+      if (!response.isCommitted()) {
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      }
     }
   }
 }
