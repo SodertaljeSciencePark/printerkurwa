@@ -38,14 +38,20 @@ public class BambuXSeriesCameraStrategy implements CameraStrategy {
 
   @Override
   public void streamCamera(HttpServletResponse response, String ip, String credentials) {
+    if (!canConnect(ip)) {
+      log.error("Camera connection check failed for X-series at {}", ip);
+      response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+      return;
+    }
     avutil.av_log_set_level(avutil.AV_LOG_QUIET);
     String rtspsUrl = "rtsps://bblp:" + credentials + "@" + ip + ":322/streaming/live/1";
 
     response.setContentType("multipart/x-mixed-replace; boundary=--frame");
 
-    try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(rtspsUrl);
-        Java2DFrameConverter converter = new Java2DFrameConverter()) {
+    FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(rtspsUrl);
+    Java2DFrameConverter converter = new Java2DFrameConverter();
 
+    try {
       grabber.setOption("rtsp_transport", "tcp");
       grabber.setOption("tls_verify", "0");
       grabber.setOption("stimeout", "5000000");
@@ -62,8 +68,10 @@ public class BambuXSeriesCameraStrategy implements CameraStrategy {
 
       while (!Thread.currentThread().isInterrupted()) {
         Frame frame = grabber.grabImage();
-        if (frame == null)
-          continue;
+        if (frame == null) {
+            Thread.sleep(10);
+            continue;
+        }
 
         long currentTime = System.currentTimeMillis();
 
@@ -91,9 +99,21 @@ public class BambuXSeriesCameraStrategy implements CameraStrategy {
         }
       }
 
-      grabber.stop();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     } catch (Exception e) {
       log.error("X-series camera streaming error on {}: {}", ip, e.getMessage());
+      if (!response.isCommitted()) {
+          response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      }
+    } finally {
+        try {
+            grabber.stop();
+            grabber.release();
+        } catch (Exception ignored) {}
+        try {
+            converter.close();
+        } catch (Exception ignored) {}
     }
   }
 }

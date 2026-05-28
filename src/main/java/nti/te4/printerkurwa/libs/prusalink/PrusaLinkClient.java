@@ -80,7 +80,7 @@ public class PrusaLinkClient {
 
       if (authResponse.statusCode() != 200) {
         throw new PrusaConnectionException(
-            "Authentication failed, API returnerade felkod: " + authResponse.statusCode(), null);
+            "Authentication failed, API returned error code: " + authResponse.statusCode(), null);
       }
 
       return parseJsonToStatus(authResponse.body());
@@ -88,7 +88,7 @@ public class PrusaLinkClient {
     } catch (PrusaConnectionException e) {
       throw e;
     } catch (Exception e) {
-      throw new PrusaConnectionException("Kunde inte ansluta till Prusa på " + ipAddress, e);
+      throw new PrusaConnectionException("Could not connect to Prusa at " + ipAddress, e);
     }
   }
 
@@ -200,3 +200,4 @@ public class PrusaLinkClient {
       return status;
   }
 }
+

@@ -36,12 +36,12 @@ public class PrusaStatsStrategy implements StatsStrategy {
         }
 
         Thread pollerThread = new Thread(() -> {
-            PrusaLinkClient client = new PrusaLinkClient(ip, "maker", printer.getAccessCode());
             int errorCount = 0;
             long pollInterval = 10_000;
             final long maxInterval = 60_000;
 
             try {
+                PrusaLinkClient client = new PrusaLinkClient(ip, "maker", printer.getAccessCode());
                 while (!Thread.currentThread().isInterrupted()) {
                     try {
                         PrusaStatus status = client.getStatus();
@@ -51,6 +51,8 @@ public class PrusaStatsStrategy implements StatsStrategy {
                         currentStats.setProgressPercent((int) status.getProgress());
                         currentStats.setBedTemp(status.getTempAmbient());
                         currentStats.setNozzleTemp(status.getTempUvLed());
+                        currentStats.setLastUpdated(System.currentTimeMillis());
+                        currentStats.setOnline(true);
 
                         statsMap.put(printer.getId(), currentStats);
 
@@ -59,18 +61,19 @@ public class PrusaStatsStrategy implements StatsStrategy {
 
                     } catch (PrusaConnectionException e) {
                         errorCount++;
+                        PrinterStats stale = statsMap.get(printer.getId());
+                        if (stale != null) {
+                            stale.setOnline(false);
+                            stale.setCurrentStatus("OFFLINE");
+                        }
                         if (errorCount <= 3) {
                             log.error("Prusa polling error for {}: {}", printer.getName(), e.getMessage());
-                        } else if (errorCount == 4) {
-                            log.warn("Prusa poller for {} backing off silently.", printer.getName());
                         }
                         pollInterval = Math.min(pollInterval * 2, maxInterval);
 
                     } catch (Exception e) {
                         errorCount++;
-                        if (errorCount <= 3) {
-                            log.error("Unexpected error polling Prusa stats for {}: {}", printer.getName(), e.getMessage());
-                        }
+                        log.error("Unexpected error polling Prusa stats for {}: {}", printer.getName(), e.getMessage());
                         pollInterval = Math.min(pollInterval * 2, maxInterval);
                     }
 
@@ -78,6 +81,8 @@ public class PrusaStatsStrategy implements StatsStrategy {
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                log.error("Fatal error in Prusa poller thread for {}: {}", printer.getName(), e.getMessage());
             } finally {
                 activePollers.remove(printer.getId());
                 log.info("Prusa stats poller stopped for: {}", printer.getName());
