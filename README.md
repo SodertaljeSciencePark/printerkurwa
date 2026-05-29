@@ -20,7 +20,83 @@ The server side of Prinvue for managing and monitoring 3D printers, with support
 
 ## Installation
 
-- Coming soon
+´´´
+services:
+  db:
+    image: postgres:18
+    restart: always
+    shm_size: 128mb
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    environment:
+      POSTGRES_DB: prinvue
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    command:
+      - "postgres"
+      - "-c"
+      - "max_wal_size=512MB"
+      - "-c"
+      - "min_wal_size=128MB"
+      - "-c"
+      - "checkpoint_timeout=10min"
+      - "-c"
+      - "autovacuum_vacuum_scale_factor=0.05"
+      - "-c"
+      - "autovacuum_analyze_scale_factor=0.02"
+      - "-c"
+      - "log_min_duration_statement=1000"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prinvue"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - printerkurwa_network
+
+  app:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=prinvue
+      - DB_USER=postgres
+      - DB_PASSWORD=1234
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:Z
+      - ./compose.yml:/app/compose.yml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - printerkurwa_network
+
+volumes:
+  pgdata:
+
+networks:
+  printerkurwa_network:
+    driver: bridge
+´´´
 
 ## Contributing
 
