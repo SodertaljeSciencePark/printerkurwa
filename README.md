@@ -20,7 +20,7 @@ The server side of Prinvue for managing and monitoring 3D printers, with support
 
 ## Installation
 
-´´´
+```yaml
 services:
   db:
     image: postgres:18
@@ -96,7 +96,7 @@ volumes:
 networks:
   printerkurwa_network:
     driver: bridge
-´´´
+```
 
 ## Contributing
 
