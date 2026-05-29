@@ -66,8 +66,7 @@ services:
       - printerkurwa_network
 
   app:
-    build:
-      context: .
+    image vicciviccison/prinvue-hub:1.0.3
     ports:
       - "8080:8080"
     environment:
